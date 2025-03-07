@@ -68,11 +68,6 @@ def nullify_channel(data):
         data['total_act_power'] = sum(data[f'{ch}_act_power'] for ch in active_channels)
         data['total_aprt_power'] = sum(data[f'{ch}_aprt_power'] for ch in active_channels)
 
-        # Nullify the specified channel in
-        #data[f'{channel}_total_act_energy'] = 0
-        #data[f'{channel}_total_act_ret_energy'] = 0
-
-        # Recalculate total values in 'emdata:0'
         data['total_act'] = sum(data[f'{ch}_total_act_energy'] for ch in active_channels)
         data['total_act_ret'] = sum(data[f'{ch}_total_act_ret_energy'] for ch in active_channels)
 
@@ -91,7 +86,7 @@ def read_shelly():
 def float_to_registers(value):
     """Convert a float to a Modbus registers using BinaryPayloadBuilder."""
     builder = BinaryPayloadBuilder(byteorder=Endian.BIG, wordorder=Endian.BIG)
-    builder.add_32bit_float(value)  # Add the float value to the payload
+    builder.add_32bit_float(value)
     payload = builder.to_registers()  # Convert the payload to 16-bit registers
     return payload
 
