@@ -40,14 +40,14 @@ else:
 lock = threading.Lock()
 
 def remove_offsets(data):
-    data['emdata:0']["a_total_act_energy"] -= config['offsets']['a_total_act_energy']
-    data['emdata:0']["a_total_act_ret_energy"] -= config['offsets']['a_total_act_ret_energy']
-    data['emdata:0']["b_total_act_energy"] -= config['offsets']['b_total_act_energy']
-    data['emdata:0']["b_total_act_ret_energy"] -= config['offsets']['b_total_act_ret_energy']
-    data['emdata:0']["c_total_act_energy"] -= config['offsets']['c_total_act_energy']
-    data['emdata:0']["c_total_act_ret_energy"] -= config['offsets']['c_total_act_ret_energy']
-    data['emdata:0']["total_act"] -= config['offsets']['total_act']
-    data['emdata:0']["total_act_ret"] -= config['offsets']['total_act_ret']
+    data["a_total_act_energy"] -= config['offsets']['a_total_act_energy']
+    data["a_total_act_ret_energy"] -= config['offsets']['a_total_act_ret_energy']
+    data["b_total_act_energy"] -= config['offsets']['b_total_act_energy']
+    data["b_total_act_ret_energy"] -= config['offsets']['b_total_act_ret_energy']
+    data["c_total_act_energy"] -= config['offsets']['c_total_act_energy']
+    data["c_total_act_ret_energy"] -= config['offsets']['c_total_act_ret_energy']
+    data["total_act"] -= config['offsets']['total_act']
+    data["total_act_ret"] -= config['offsets']['total_act_ret']
     return data
 
 def nullify_channel(data):
@@ -58,38 +58,35 @@ def nullify_channel(data):
             raise ValueError("Channel must be 'a', 'b', or 'c'.")
 
         # Nullify the specified channel in 'em:0'
-        for key in list(data['em:0'].keys()):
+        for key in list(data.keys()):
             if key.startswith(f'{channel}_') and key not in [f'{channel}_freq', f'{channel}_voltage']:
-                data['em:0'][key] = 0 if isinstance(data['em:0'][key], (int, float)) else None
+                data[key] = 0 if isinstance(data[key], (int, float)) else None
 
-        # Recalculate total values in 'em:0'
+        # Recalculate total values
         active_channels = [ch for ch in ['a', 'b', 'c'] if ch != channel]
-        data['em:0']['total_current'] = sum(data['em:0'][f'{ch}_current'] for ch in active_channels)
-        data['em:0']['total_act_power'] = sum(data['em:0'][f'{ch}_act_power'] for ch in active_channels)
-        data['em:0']['total_aprt_power'] = sum(data['em:0'][f'{ch}_aprt_power'] for ch in active_channels)
+        data['total_current'] = sum(data[f'{ch}_current'] for ch in active_channels)
+        data['total_act_power'] = sum(data[f'{ch}_act_power'] for ch in active_channels)
+        data['total_aprt_power'] = sum(data[f'{ch}_aprt_power'] for ch in active_channels)
 
-        # Nullify the specified channel in 'emdata:0'
-        data['emdata:0'][f'{channel}_total_act_energy'] = 0
-        data['emdata:0'][f'{channel}_total_act_ret_energy'] = 0
+        # Nullify the specified channel in
+        #data[f'{channel}_total_act_energy'] = 0
+        #data[f'{channel}_total_act_ret_energy'] = 0
 
         # Recalculate total values in 'emdata:0'
-        data['emdata:0']['total_act'] = sum(data['emdata:0'][f'{ch}_total_act_energy'] for ch in active_channels)
-        data['emdata:0']['total_act_ret'] = sum(data['emdata:0'][f'{ch}_total_act_ret_energy'] for ch in active_channels)
+        data['total_act'] = sum(data[f'{ch}_total_act_energy'] for ch in active_channels)
+        data['total_act_ret'] = sum(data[f'{ch}_total_act_ret_energy'] for ch in active_channels)
 
 
 def read_shelly():
     response = requests.get(config['shelly_url'])
     response.raise_for_status()
     data = response.json()
-    remove_offsets(data)
-    nullify_channel(data)
+    shelly_data = {**data['em:0'], **data['emdata:0']}
+    remove_offsets(shelly_data)
+    nullify_channel(shelly_data)
 
-    #put all em data in the same structure
-    for key, value in data['emdata:0'].items():
-        data['em:0'][key] = value
+    return shelly_data
 
-
-    return data['em:0']
 
 def float_to_registers(value):
     """Convert a float to a Modbus registers using BinaryPayloadBuilder."""
