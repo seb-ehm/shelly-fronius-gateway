@@ -103,7 +103,7 @@ def update_context(context):
     modbus_data = map_values_to_registers(shelly_data)
 
     registers = [0] * 128
-    start_address = 40072
+    start_address = 72
     for address, value in modbus_data.items():
         index = address - start_address
         register_values = float_to_registers(value)
