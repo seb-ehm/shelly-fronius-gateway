@@ -5,7 +5,7 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Copy the script into the container
-COPY *.py /app/
+COPY *.py config.json /app/
 
 # Install dependencies
 RUN pip install --no-cache-dir pymodbus requests
