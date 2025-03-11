@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy the script into the container
 COPY *.py *.json /app/
-s
+
 # Install dependencies
 RUN pip install --no-cache-dir pymodbus requests
 
