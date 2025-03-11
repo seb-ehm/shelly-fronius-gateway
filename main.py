@@ -105,13 +105,18 @@ def update_context(context):
     return context
 
 def start_modbus_server(context):
-    print(f"{datetime.datetime.now()}: ### Starting Modbus server on port {MODBUS_PORT}")
+    print(f"{datetime.datetime.now()}: ### Starting Shelly-Fronius-Gateway on port {MODBUS_PORT}")
     StartTcpServer(context=context, address=("0.0.0.0", MODBUS_PORT))
 
 def update_data_periodically(context):
     while True:
-        update_context(context)
-        time.sleep(1)
+        time_to_wait = 1
+        try:
+            update_context(context)
+        except Exception as e:
+            print(f"{datetime.datetime.now()}: Failed to update data: {e}")
+            time_to_wait = 5 #Sleep a bit longer after an error
+        time.sleep(time_to_wait)
 
 
 if __name__ == '__main__':
