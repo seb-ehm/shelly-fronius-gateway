@@ -6,12 +6,15 @@ import datetime
 import requests
 from pymodbus.constants import Endian
 from pymodbus.payload import BinaryPayloadBuilder
-from pymodbus.server import StartTcpServer
+from pymodbus.server import StartTcpServer, ServerStop
+from pymodbus.server.base import ModbusBaseServer
 
 from register_mapping import map_values_to_registers
 from modbus import initialize_datablock_and_context
 
 import json
+import signal
+import sys
 
 MODBUS_PORT = 502
 CONFIG_FILE = "config.json"
@@ -38,6 +41,8 @@ else:
     config = DEFAULT_CONFIG
 
 lock = threading.Lock()
+shelly_thread = None
+shutdown_event = threading.Event()
 
 def remove_offsets(data):
     data["a_total_act_energy"] -= config['offsets']['a_total_act_energy']
@@ -106,24 +111,52 @@ def update_context(context):
 
 def start_modbus_server(context):
     print(f"{datetime.datetime.now()}: ### Starting Shelly-Fronius-Gateway on port {MODBUS_PORT}")
-    StartTcpServer(context=context, address=("0.0.0.0", MODBUS_PORT))
+    try:
+        StartTcpServer(context=context, address=("0.0.0.0", MODBUS_PORT))
+    except TimeoutError:
+        print(f"{datetime.datetime.now()}: MODBUS server timeout") #Happens on SIGTERM / SIGINT
+    except Exception as e:
+        print(f"{datetime.datetime.now()}: MODBUS server failed: {e}")
 
 def update_data_periodically(context):
-    while True:
+    while not shutdown_event.is_set():
         time_to_wait = 1
         try:
             update_context(context)
         except Exception as e:
             print(f"{datetime.datetime.now()}: Failed to update data: {e}")
-            time_to_wait = 5 #Sleep a bit longer after an error
+            time_to_wait = 2 #Sleep a bit longer after an error
         time.sleep(time_to_wait)
 
 
+def handle_signal(sig, frame):
+    """Handle SIGTERM and SIGINT (Ctrl+C)."""
+    print(f"{datetime.datetime.now()}: Received signal {sig}, shutting down...")
+    shutdown_event.set()
+    time.sleep(2) #wait for cleanup
+    if shelly_thread and shelly_thread.is_alive():
+        shelly_thread.join()  # Ensure the thread stops
+        print(f"{datetime.datetime.now()}: Shelly Thread stopped, exiting")
+    sys.exit(0)
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+
     datablock, context = initialize_datablock_and_context(lock=lock)
     shelly_thread = threading.Thread(target=update_data_periodically, args=(context,), daemon=True)
     shelly_thread.start()
     start_modbus_server(context)
+    while not shutdown_event.is_set():
+        print(f"{datetime.datetime.now()}: Modbus Server stopped without shutdown event. Trying to restart")
+        start_modbus_server(context)
+        time.sleep(1)
+
+    print(f"{datetime.datetime.now()}: Modbus server stopped")
+    if shelly_thread and shelly_thread.is_alive():
+        shelly_thread.join()
+        print(f"{datetime.datetime.now()}: Shelly Thread stopped, exiting")
 
 
 
