@@ -20,7 +20,7 @@ MODBUS_PORT = 502
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
     "shelly_url": "http://shelly/rpc/Shelly.GetStatus",
-    "shelly_offsets": {
+    "offsets": {
         "a_total_act_energy": 0,
         "a_total_act_ret_energy": 0,
         "b_total_act_energy": 0,
@@ -139,12 +139,30 @@ def handle_signal(sig, frame):
         print(f"{datetime.datetime.now()}: Shelly Thread stopped, exiting")
     sys.exit(0)
 
+def set_offsets_on_startup():
+    response = requests.get(config['shelly_url'])
+    response.raise_for_status()
+    data = response.json()
+    shelly_data = {**data['em:0'], **data['emdata:0']}
+    print(f"Old offsets: {config['offsets']}")
+    config['offsets']['a_total_act_energy'] = shelly_data["a_total_act_energy"]
+    config['offsets']['a_total_act_ret_energy'] = shelly_data["a_total_act_ret_energy"]
+    config['offsets']['b_total_act_energy'] = shelly_data["b_total_act_energy"]
+    config['offsets']['b_total_act_ret_energy'] = shelly_data["b_total_act_ret_energy"]
+    config['offsets']['c_total_act_energy'] = shelly_data["c_total_act_energy"]
+    config['offsets']['c_total_act_ret_energy'] = shelly_data["c_total_act_ret_energy"]
+    config['offsets']['total_act'] = shelly_data["total_act"]
+    config['offsets']['total_act_ret'] = shelly_data["total_act_ret"]
+    print(f"New offsets: {config['offsets']}")
+
 
 if __name__ == '__main__':
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
 
     datablock, context = initialize_datablock_and_context(lock=lock)
+    set_offsets_on_startup()
+
     shelly_thread = threading.Thread(target=update_data_periodically, args=(context,), daemon=True)
     shelly_thread.start()
     start_modbus_server(context)

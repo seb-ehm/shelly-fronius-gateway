@@ -1,6 +1,6 @@
 {
     "shelly_url": "http://shellypro3em/rpc/Shelly.GetStatus",
-    "shelly_offsets": {
+    "offsets": {
         "a_total_act_energy": 0,
         "a_total_act_ret_energy": 0,
         "b_total_act_energy": 0,
