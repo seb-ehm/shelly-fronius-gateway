@@ -78,7 +78,7 @@ def nullify_channel(data):
 
 
 def read_shelly():
-    response = requests.get(config['shelly_url'])
+    response = requests.get(config['shelly_url'], timeout=5)
     response.raise_for_status()
     data = response.json()
     shelly_data = {**data['em:0'], **data['emdata:0']}
